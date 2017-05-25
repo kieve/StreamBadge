@@ -199,7 +199,11 @@ public class App extends NanoHTTPD {
                 byte[] bytes = byteOS.toByteArray();
                 ByteArrayInputStream byteIS = new ByteArrayInputStream(bytes);
 
-                return newFixedLengthResponse(Response.Status.OK, "image/png", byteIS, bytes.length);
+                Response response = newFixedLengthResponse(Response.Status.OK,
+                        "image/png", byteIS, bytes.length);
+                response.addHeader("Cache-Control",
+                        "max-age=0, no-cache, must-revalidate, proxy-revalidate");
+                return response;
             } catch (Exception e) {
                 return status("not ok: couldn't write image");
             }
