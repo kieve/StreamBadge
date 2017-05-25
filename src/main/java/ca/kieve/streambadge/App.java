@@ -49,36 +49,50 @@ import java.util.Locale;
 import java.util.Map;
 
 public class App extends NanoHTTPD {
+
     private static final String TWITCH_CLIENT_ID = "ojx3a75kh8at01b2ymslcsch0uf99q";
-    private static final String TWITCH_STREAM =
-            "https://api.twitch.tv/kraken/streams/%s?client_id=%s";
-    private static final String TWITCH_CHANNEL =
-            "https://api.twitch.tv/kraken/channels/%s?client_id=%s";
-    private static final String TWITCH_GAME_SEARCH =
-            "https://api.twitch.tv/kraken/search/games?q=%s&type=suggest&client_id=%s";
 
-    private static final String TWITCH_GLITCH = "res/Glitch_White_RGB.png";
-    private static final Color  TWITCH_PURPLE = new Color(100, 65, 164);
-    private static final String TWITCH_LIVE = "res/liveman.png";
-    private static final Color  TWITCH_RED = new Color(207, 54, 54);
-    private static final String TWITCH_EYE = "res/viewseye.png";
-    private static final Color  TWITCH_GREY = new Color(137, 131, 149);
+    private static final String TWITCH_STREAM = "https://api.twitch.tv/kraken/streams/%s?client_id=%s";
 
+    private static final String TWITCH_CHANNEL = "https://api.twitch.tv/kraken/channels/%s?client_id=%s";
+
+    private static final String TWITCH_GAME_SEARCH = "https://api.twitch.tv/kraken/search/games?q=%s&type=suggest&client_id=%s";
+
+    private static final String TWITCH_GLITCH = "/res/Glitch_White_RGB.png";
+
+    private static final Color TWITCH_PURPLE = new Color(100, 65, 164);
+
+    private static final String TWITCH_LIVE = "/res/liveman.png";
+
+    private static final Color TWITCH_RED = new Color(207, 54, 54);
+
+    private static final String TWITCH_EYE = "/res/viewseye.png";
+
+    private static final Color TWITCH_GREY = new Color(137, 131, 149);
 
     private static class TwitchMetaData {
-        String  displayName;
+
+        String displayName;
+
         boolean streaming;
-        String  game;
-        String  profileImageUrl;
-        int     viewers;
-        int     views;
+
+        String game;
+
+        String profileImageUrl;
+
+        int viewers;
+
+        int views;
     }
 
     private Map<String, Image> m_gameImageCache;
+
     private Map<String, Image> m_profileImageCache;
 
     private Image m_twitchGlitch;
+
     private Image m_twitchLive;
+
     private Image m_twitchEye;
 
     private App() throws IOException {
@@ -87,9 +101,9 @@ public class App extends NanoHTTPD {
         m_gameImageCache = new HashMap<>();
         m_profileImageCache = new HashMap<>();
 
-        m_twitchGlitch = ImageIO.read(new File(TWITCH_GLITCH));
-        m_twitchLive = ImageIO.read(new File(TWITCH_LIVE));
-        m_twitchEye = ImageIO.read(new File(TWITCH_EYE));
+        m_twitchGlitch = ImageIO.read(getClass().getResourceAsStream(TWITCH_GLITCH));
+        m_twitchLive = ImageIO.read(getClass().getResourceAsStream(TWITCH_LIVE));
+        m_twitchEye = ImageIO.read(getClass().getResourceAsStream(TWITCH_EYE));
 
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
         System.out.println("\nRunning! Point your browsers to http://localhost:8080/ \n");
@@ -127,14 +141,11 @@ public class App extends NanoHTTPD {
             Image gameImage = getGameImage(metaData.game);
             Image profileImage = getProfileImage(metaData);
 
-            BufferedImage image = new BufferedImage(500, 300,
-                    BufferedImage.TYPE_INT_ARGB);
+            BufferedImage image = new BufferedImage(500, 300, BufferedImage.TYPE_INT_ARGB);
 
             Graphics2D g2d = image.createGraphics();
-            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
-            g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,
-                    RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+            g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
             g2d.setColor(new Color(234, 234, 234));
             g2d.fillRect(0, 0, 500, 64);
@@ -151,7 +162,6 @@ public class App extends NanoHTTPD {
             g2d.drawString(metaData.displayName, 64, 25);
             FontMetrics fm = g2d.getFontMetrics();
             int leftMostText = fm.stringWidth(metaData.displayName) + 64;
-
 
             if (metaData.streaming) {
                 g2d.setFont(font12);
@@ -170,8 +180,7 @@ public class App extends NanoHTTPD {
                 g2d.drawString(viewers, 80, 54);
                 int leftViewers = fm.stringWidth(viewers) + 80;
 
-                g2d.drawImage(m_twitchEye, leftViewers + 5, 45, 11, 9,
-                        null);
+                g2d.drawImage(m_twitchEye, leftViewers + 5, 45, 11, 9, null);
                 g2d.setColor(TWITCH_GREY);
                 String views = NumberFormat.getNumberInstance(Locale.US).format(metaData.views);
                 g2d.drawString(views, leftViewers + 20, 54);
@@ -186,14 +195,12 @@ public class App extends NanoHTTPD {
             }
 
             if (gameImage != null) {
-                g2d.drawImage(gameImage, 10 + leftMostText, 0, 46, 64,
-                        null);
+                g2d.drawImage(gameImage, 10 + leftMostText, 0, 46, 64, null);
                 leftMostText += 56;
             } else {
                 g2d.setColor(TWITCH_PURPLE);
                 g2d.fillRect(10 + leftMostText, 0, 64, 64);
-                g2d.drawImage(m_twitchGlitch, leftMostText + 14, 4, 60, 60,
-                        null);
+                g2d.drawImage(m_twitchGlitch, leftMostText + 14, 4, 60, 60, null);
                 leftMostText += 74;
             }
 
@@ -207,8 +214,7 @@ public class App extends NanoHTTPD {
                 byte[] bytes = byteOS.toByteArray();
                 ByteArrayInputStream byteIS = new ByteArrayInputStream(bytes);
 
-                return newFixedLengthResponse(Response.Status.OK, "image/png", byteIS,
-                        bytes.length);
+                return newFixedLengthResponse(Response.Status.OK, "image/png", byteIS, bytes.length);
             } catch (Exception e) {
                 return status("not ok: couldn't write image");
             }
@@ -332,9 +338,7 @@ public class App extends NanoHTTPD {
 
         JSONObject gameSearch;
         try {
-            gameSearch = getJson(String.format(TWITCH_GAME_SEARCH,
-                    URLEncoder.encode(gameName, "UTF-8"),
-                    TWITCH_CLIENT_ID));
+            gameSearch = getJson(String.format(TWITCH_GAME_SEARCH, URLEncoder.encode(gameName, "UTF-8"), TWITCH_CLIENT_ID));
         } catch (UnsupportedEncodingException e) {
             gameSearch = null;
         }
