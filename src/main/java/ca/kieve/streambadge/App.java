@@ -151,10 +151,10 @@ public class App extends NanoHTTPD {
                 g2d.setColor(Color.BLACK);
                 g2d.drawString("Playing ", 64, 38);
                 g2d.setColor(TWITCH_PURPLE);
-                g2d.drawString(metaData.game, 107, 38);
+                g2d.drawString(metaData.game, 108, 38);
 
                 fm = g2d.getFontMetrics();
-                int leftNowPlaying = fm.stringWidth(metaData.game) + 107;
+                int leftNowPlaying = fm.stringWidth(metaData.game) + 108;
                 leftMostText = Math.max(leftMostText, leftNowPlaying);
 
                 g2d.drawImage(m_twitchLive, 66, 45, 9, 9, null);
