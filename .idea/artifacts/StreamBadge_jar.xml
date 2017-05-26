@@ -6,7 +6,7 @@
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/nanohttpd/nanohttpd/2.2.0/nanohttpd-2.2.0.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/json/json/20170516/json-20170516.jar" path-in-jar="/" />
       <element id="directory" name="res">
-        <element id="dir-copy" path="$PROJECT_DIR$/res" />
+        <element id="dir-copy" path="$PROJECT_DIR$/src/main/res" />
       </element>
     </root>
   </artifact>

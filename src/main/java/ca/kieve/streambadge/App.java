@@ -1,38 +1,5 @@
 package ca.kieve.streambadge;
 
-/*
- * #%L
- * StreamBadge
- * %%
- * Copyright (C) 2012 - 2017 nanohttpd
- * %%
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the nanohttpd nor the names of its contributors
- *    may be used to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * #L%
- */
-
 import fi.iki.elonen.NanoHTTPD;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -47,19 +14,27 @@ import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 
 public class App extends NanoHTTPD {
-    private static final String TWITCH_CLIENT_ID = "ojx3a75kh8at01b2ymslcsch0uf99q";
-    private static final String TWITCH_STREAM = "https://api.twitch.tv/kraken/streams/%s?client_id=%s";
-    private static final String TWITCH_CHANNEL = "https://api.twitch.tv/kraken/channels/%s?client_id=%s";
-    private static final String TWITCH_GAME_SEARCH = "https://api.twitch.tv/kraken/search/games?q=%s&type=suggest&client_id=%s";
+    private static final String TWITCH_STREAM =
+            "https://api.twitch.tv/kraken/streams/%s?client_id=%s";
+    private static final String TWITCH_CHANNEL =
+            "https://api.twitch.tv/kraken/channels/%s?client_id=%s";
+    private static final String TWITCH_GAME_SEARCH =
+            "https://api.twitch.tv/kraken/search/games?q=%s&type=suggest&client_id=%s";
 
-    private static final String TWITCH_GLITCH = "/res/Glitch_White_RGB.png";
-    private static final Color TWITCH_PURPLE = new Color(100, 65, 164);
-    private static final String TWITCH_LIVE = "/res/liveman.png";
-    private static final Color TWITCH_RED = new Color(207, 54, 54);
-    private static final String TWITCH_EYE = "/res/viewseye.png";
-    private static final Color TWITCH_GREY = new Color(137, 131, 149);
+    private static final String CONFIG = "/config.properties";
+    private static final String CONFIG_TWITCH_CLIENT_ID = "twitchClientId";
+
+    private static final String HELVETICA_NEUE = "/HelveticaNeueBd.ttf";
+
+    private static final String TWITCH_GLITCH = "/Glitch_White_RGB.png";
+    private static final Color  TWITCH_PURPLE = new Color(100, 65, 164);
+    private static final String TWITCH_LIVE = "/liveman.png";
+    private static final Color  TWITCH_RED = new Color(207, 54, 54);
+    private static final String TWITCH_EYE = "/viewseye.png";
+    private static final Color  TWITCH_GREY = new Color(137, 131, 149);
 
     private static class TwitchMetaData {
         String displayName;
@@ -70,8 +45,10 @@ public class App extends NanoHTTPD {
         int views;
     }
 
-    private Map<String, Image> m_gameImageCache;
+    private final String              m_twitchClientId;
+    private final GraphicsEnvironment m_graphicsEnvironment;
 
+    private Map<String, Image> m_gameImageCache;
     private Map<String, Image> m_profileImageCache;
 
     private Image m_twitchGlitch;
@@ -80,6 +57,19 @@ public class App extends NanoHTTPD {
 
     private App() throws IOException {
         super(8080);
+
+        Properties props = new Properties();
+        props.load(getClass().getResourceAsStream(CONFIG));
+        m_twitchClientId = props.getProperty(CONFIG_TWITCH_CLIENT_ID);
+
+        m_graphicsEnvironment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        try {
+            Font font = Font.createFont(Font.TRUETYPE_FONT,
+                    getClass().getResourceAsStream(HELVETICA_NEUE));
+            m_graphicsEnvironment.registerFont(font);
+        } catch (Exception e) {
+            System.out.println("Couldn't load the font :(");
+        }
 
         m_gameImageCache = new HashMap<>();
         m_profileImageCache = new HashMap<>();
@@ -124,17 +114,21 @@ public class App extends NanoHTTPD {
             Image gameImage = getGameImage(metaData.game);
             Image profileImage = getProfileImage(metaData);
 
-            BufferedImage image = new BufferedImage(500, 300, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage image = new BufferedImage(500, 300,
+                    BufferedImage.TYPE_INT_ARGB);
 
-            Graphics2D g2d = image.createGraphics();
-            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
-            g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            Graphics2D g2d = m_graphicsEnvironment.createGraphics(image);
+
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                    RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+            g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,
+                    RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
             g2d.setColor(new Color(234, 234, 234));
             g2d.fillRect(0, 0, 500, 64);
 
-            Font font20B = new Font("Helvetica Neue", Font.BOLD, 20);
-            Font font12 = new Font("Helvetica Neue", Font.PLAIN, 12);
+            Font font20B = new Font("HelveticaNeue", Font.BOLD, 20);
+            Font font12 = new Font("HelveticaNeue", Font.PLAIN, 12);
             g2d.setFont(font20B);
 
             if (profileImage != null) {
@@ -148,22 +142,25 @@ public class App extends NanoHTTPD {
 
             if (metaData.streaming) {
                 g2d.setFont(font12);
-                g2d.setColor(Color.BLACK);
-                g2d.drawString("Playing ", 64, 38);
-                g2d.setColor(TWITCH_PURPLE);
-                g2d.drawString(metaData.game, 108, 38);
-
                 fm = g2d.getFontMetrics();
-                int leftNowPlaying = fm.stringWidth(metaData.game) + 108;
+
+                g2d.setColor(Color.BLACK);
+                g2d.drawString("Playing", 64, 39);
+                g2d.setColor(TWITCH_PURPLE);
+                int leftPlaying = fm.stringWidth("Playing ") + 64;
+                g2d.drawString(metaData.game, leftPlaying, 39);
+
+                int leftNowPlaying = fm.stringWidth(metaData.game) + leftPlaying;
                 leftMostText = Math.max(leftMostText, leftNowPlaying);
 
-                g2d.drawImage(m_twitchLive, 66, 45, 9, 9, null);
+                g2d.drawImage(m_twitchLive, 64, 45, 9, 9, null);
                 g2d.setColor(TWITCH_RED);
                 String viewers = NumberFormat.getNumberInstance(Locale.US).format(metaData.viewers);
-                g2d.drawString(viewers, 80, 54);
-                int leftViewers = fm.stringWidth(viewers) + 80;
+                g2d.drawString(viewers, 78, 54);
+                int leftViewers = fm.stringWidth(viewers) + 78;
 
-                g2d.drawImage(m_twitchEye, leftViewers + 5, 45, 11, 9, null);
+                g2d.drawImage(m_twitchEye, leftViewers + 5, 45, 11, 9,
+                        null);
                 g2d.setColor(TWITCH_GREY);
                 String views = NumberFormat.getNumberInstance(Locale.US).format(metaData.views);
                 g2d.drawString(views, leftViewers + 20, 54);
@@ -253,8 +250,8 @@ public class App extends NanoHTTPD {
         }
     }
 
-    private static TwitchMetaData getMetaData(String user) {
-        JSONObject json = getJson(String.format(TWITCH_STREAM, user, TWITCH_CLIENT_ID));
+    private TwitchMetaData getMetaData(String user) {
+        JSONObject json = getJson(String.format(TWITCH_STREAM, user, m_twitchClientId));
         if (json == null) {
             return null;
         }
@@ -268,7 +265,7 @@ public class App extends NanoHTTPD {
         if (stream != null) {
             channel = getJSONObject(stream, "channel");
         } else {
-            channel = getJson(String.format(TWITCH_CHANNEL, user, TWITCH_CLIENT_ID));
+            channel = getJson(String.format(TWITCH_CHANNEL, user, m_twitchClientId));
         }
 
         if (channel == null) {
@@ -327,7 +324,8 @@ public class App extends NanoHTTPD {
 
         JSONObject gameSearch;
         try {
-            gameSearch = getJson(String.format(TWITCH_GAME_SEARCH, URLEncoder.encode(gameName, "UTF-8"), TWITCH_CLIENT_ID));
+            gameSearch = getJson(String.format(TWITCH_GAME_SEARCH, URLEncoder.encode(gameName,
+                    "UTF-8"), m_twitchClientId));
         } catch (UnsupportedEncodingException e) {
             gameSearch = null;
         }
