@@ -69,6 +69,7 @@ public class App extends NanoHTTPD {
             m_graphicsEnvironment.registerFont(font);
         } catch (Exception e) {
             System.out.println("Couldn't load the font :(");
+            e.printStackTrace();
         }
 
         m_gameImageCache = new HashMap<>();
@@ -85,8 +86,9 @@ public class App extends NanoHTTPD {
     public static void main(String[] args) {
         try {
             new App();
-        } catch (IOException ioe) {
-            System.err.println("Couldn't start server:\n" + ioe);
+        } catch (IOException e) {
+            System.err.println("Couldn't start server");
+            e.printStackTrace();
         }
     }
 
@@ -202,6 +204,7 @@ public class App extends NanoHTTPD {
                         "max-age=0, no-cache, must-revalidate, proxy-revalidate");
                 return response;
             } catch (Exception e) {
+                e.printStackTrace();
                 return status("not ok: couldn't write image");
             }
         } catch (Exception e) {
@@ -305,6 +308,7 @@ public class App extends NanoHTTPD {
 
             return buffer.toString();
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         } finally {
             if (reader != null) {
@@ -315,10 +319,12 @@ public class App extends NanoHTTPD {
 
     private Image getGameImage(String gameName) {
         if (m_gameImageCache.containsKey(gameName)) {
-            return m_gameImageCache.get(gameName);
+            // TODO: Fix this
+//            return m_gameImageCache.get(gameName);
         }
 
         if (gameName == null) {
+            System.out.println("Game name is null.");
             return null;
         }
 
@@ -327,29 +333,35 @@ public class App extends NanoHTTPD {
             gameSearch = getJson(String.format(TWITCH_GAME_SEARCH, URLEncoder.encode(gameName,
                     "UTF-8"), m_twitchClientId));
         } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
             gameSearch = null;
         }
         if (gameSearch == null) {
+            System.out.println("Game search is null.");
             return null;
         }
 
         JSONArray gameList = getJsonArray(gameSearch, "games");
         if (gameList == null) {
+            System.out.println("Game list is null.");
             return null;
         }
 
         JSONObject bestMatch = getJSONObject(gameList, 0);
         if (bestMatch == null) {
+            System.out.println("Best match is null.");
             return null;
         }
 
         JSONObject boxArt = getJSONObject(bestMatch, "box");
         if (boxArt == null) {
+            System.out.println("Box art is null.");
             return null;
         }
 
         String template = getString(boxArt, "template");
         if (template == null) {
+            System.out.println("Template is null.");
             return null;
         }
         template = template.replace("{width}", "68");
@@ -358,22 +370,28 @@ public class App extends NanoHTTPD {
         Image image = readImage(template);
         if (image != null) {
             m_gameImageCache.put(gameName, image);
+        } else {
+            System.out.println("Couldn't read game image.");
         }
         return image;
     }
 
     private Image getProfileImage(TwitchMetaData metaData) {
         if (m_profileImageCache.containsKey(metaData.displayName)) {
-            return m_profileImageCache.get(metaData.displayName);
+            // TODO: Fix this
+//            return m_profileImageCache.get(metaData.displayName);
         }
 
         if (metaData.profileImageUrl == null) {
+            System.out.println("Profile image url is null.");
             return null;
         }
 
         Image image = readImage(metaData.profileImageUrl);
         if (image != null) {
             m_profileImageCache.put(metaData.displayName, image);
+        } else {
+            System.out.println("Couldn't read profile image.");
         }
         return image;
     }
@@ -383,6 +401,7 @@ public class App extends NanoHTTPD {
             URL url = new URL(urlString);
             return ImageIO.read(url);
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
