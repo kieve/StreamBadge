@@ -5,11 +5,22 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import javax.net.ssl.HttpsURLConnection;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
@@ -17,12 +28,14 @@ import java.util.Map;
 import java.util.Properties;
 
 public class App extends NanoHTTPD {
+    private static final String CLIENT_ID_HEADER = "Client-ID";
+
     private static final String TWITCH_STREAM =
-            "https://api.twitch.tv/kraken/streams/%s?client_id=%s";
-    private static final String TWITCH_CHANNEL =
-            "https://api.twitch.tv/kraken/channels/%s?client_id=%s";
-    private static final String TWITCH_GAME_SEARCH =
-            "https://api.twitch.tv/kraken/search/games?q=%s&type=suggest&client_id=%s";
+            "https://api.twitch.tv/helix/streams?user_login=%s";
+    private static final String TWITCH_USER =
+            "https://api.twitch.tv/helix/users?login=%s";
+    private static final String TWITCH_GAME =
+            "https://api.twitch.tv/helix/games?id=%s";
 
     private static final String CONFIG = "/config.properties";
     private static final String CONFIG_TWITCH_CLIENT_ID = "twitchClientId";
@@ -39,10 +52,15 @@ public class App extends NanoHTTPD {
     private static class TwitchMetaData {
         String displayName;
         boolean streaming;
-        String game;
+        String gameId;
         String profileImageUrl;
         int viewers;
         int views;
+    }
+
+    private static class TwitchGameData {
+        String gameName;
+        Image image;
     }
 
     private final String              m_twitchClientId;
@@ -113,7 +131,7 @@ public class App extends NanoHTTPD {
                 return status("not ok: can't find twitch user");
             }
 
-            Image gameImage = getGameImage(metaData.game);
+            TwitchGameData gameData = getGameImage(metaData.gameId);
             Image profileImage = getProfileImage(metaData);
 
             BufferedImage image = new BufferedImage(500, 300,
@@ -150,9 +168,11 @@ public class App extends NanoHTTPD {
                 g2d.drawString("Playing", 64, 39);
                 g2d.setColor(TWITCH_PURPLE);
                 int leftPlaying = fm.stringWidth("Playing ") + 64;
-                g2d.drawString(metaData.game, leftPlaying, 39);
 
-                int leftNowPlaying = fm.stringWidth(metaData.game) + leftPlaying;
+                String gameName = gameData == null ? "Unknown" : gameData.gameName;
+                g2d.drawString(gameName, leftPlaying, 39);
+
+                int leftNowPlaying = fm.stringWidth(gameName) + leftPlaying;
                 leftMostText = Math.max(leftMostText, leftNowPlaying);
 
                 g2d.drawImage(m_twitchLive, 64, 45, 9, 9, null);
@@ -176,15 +196,13 @@ public class App extends NanoHTTPD {
                 leftMostText = Math.max(leftMostText, leftOffline);
             }
 
-            if (gameImage != null) {
-                g2d.drawImage(gameImage, 10 + leftMostText, 0, 46, 64,
-                        null);
+            if (gameData != null && gameData.image != null) {
+                g2d.drawImage(gameData.image, 10 + leftMostText, 0, 46, 64, null);
                 leftMostText += 56;
             } else {
                 g2d.setColor(TWITCH_PURPLE);
                 g2d.fillRect(10 + leftMostText, 0, 64, 64);
-                g2d.drawImage(m_twitchGlitch, leftMostText + 14, 4, 56, 56,
-                        null);
+                g2d.drawImage(m_twitchGlitch, leftMostText + 17, 7, 50, 50, null);
                 leftMostText += 74;
             }
 
@@ -253,52 +271,61 @@ public class App extends NanoHTTPD {
         }
     }
 
-    private TwitchMetaData getMetaData(String user) {
-        JSONObject json = getJson(String.format(TWITCH_STREAM, user, m_twitchClientId));
+    private TwitchMetaData getMetaData(String userName) {
+        JSONObject json = getJson(String.format(TWITCH_STREAM, userName));
         if (json == null) {
             return null;
         }
 
-        TwitchMetaData result = new TwitchMetaData();
+        JSONArray streams = getJsonArray(json, "data");
+        JSONObject stream = null;
+        JSONObject user = null;
 
-        JSONObject stream;
-        JSONObject channel;
-
-        stream = getJSONObject(json, "stream");
-        if (stream != null) {
-            channel = getJSONObject(stream, "channel");
-        } else {
-            channel = getJson(String.format(TWITCH_CHANNEL, user, m_twitchClientId));
+        if (streams != null && streams.length() != 0) {
+            stream = getJSONObject(streams, 0);
         }
 
-        if (channel == null) {
+        json = getJson(String.format(TWITCH_USER, userName));
+        if (json != null) {
+            JSONArray users = getJsonArray(json, "data");
+            if (users != null && users.length() != 0) {
+                user = getJSONObject(users, 0);
+            }
+        }
+
+        if (stream == null && user == null) {
             return null;
         }
 
+        TwitchMetaData result = new TwitchMetaData();
         if (stream != null) {
             result.streaming = true;
-            result.game = getString(stream, "game");
-            Integer viewers = getInt(stream, "viewers");
+            result.gameId = getString(stream, "game_id");
+            Integer viewers = getInt(stream, "viewer_count");
             result.viewers = viewers == null ? 0 : viewers;
         }
-        result.displayName = getString(channel, "display_name");
-        result.profileImageUrl = getString(channel, "logo");
-        Integer views = getInt(channel, "views");
-        result.views = views == null ? 0 : views;
+        if (user != null) {
+            result.displayName = getString(user, "display_name");
+            result.profileImageUrl = getString(user, "profile_image_url");
+            Integer views = getInt(user, "view_count");
+            result.views = views == null ? 0 : views;
+        }
 
         return result;
     }
 
-    private static JSONObject getJson(String urlString) {
+    private JSONObject getJson(String urlString) {
         String json = readJson(urlString);
         return json == null ? null : new JSONObject(json);
     }
 
-    private static String readJson(String urlString) {
+    private String readJson(String urlString) {
         BufferedReader reader = null;
         try {
             URL url = new URL(urlString);
-            reader = new BufferedReader(new InputStreamReader(url.openStream()));
+            HttpsURLConnection httpsURLConnection = (HttpsURLConnection) url.openConnection();
+            httpsURLConnection.setRequestProperty(CLIENT_ID_HEADER, m_twitchClientId);
+            reader = new BufferedReader(new InputStreamReader(httpsURLConnection.getInputStream()));
             StringBuilder buffer = new StringBuilder();
             int read;
             char[] chars = new char[1024];
@@ -317,63 +344,55 @@ public class App extends NanoHTTPD {
         }
     }
 
-    private Image getGameImage(String gameName) {
-        if (m_gameImageCache.containsKey(gameName)) {
+    private TwitchGameData getGameImage(String gameId) {
+        if (m_gameImageCache.containsKey(gameId)) {
             // TODO: Fix this
 //            return m_gameImageCache.get(gameName);
         }
 
-        if (gameName == null) {
+        if (gameId == null) {
             System.out.println("Game name is null.");
             return null;
         }
 
-        JSONObject gameSearch;
-        try {
-            gameSearch = getJson(String.format(TWITCH_GAME_SEARCH, URLEncoder.encode(gameName,
-                    "UTF-8"), m_twitchClientId));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            gameSearch = null;
-        }
-        if (gameSearch == null) {
-            System.out.println("Game search is null.");
+        JSONObject json = getJson(String.format(TWITCH_GAME, gameId));
+        if (json == null) {
+            System.out.println("Game response is null");
             return null;
         }
 
-        JSONArray gameList = getJsonArray(gameSearch, "games");
+        JSONArray gameList = getJsonArray(json, "data");
         if (gameList == null) {
             System.out.println("Game list is null.");
             return null;
         }
 
-        JSONObject bestMatch = getJSONObject(gameList, 0);
-        if (bestMatch == null) {
-            System.out.println("Best match is null.");
+        JSONObject game = getJSONObject(gameList, 0);
+        if (game == null) {
+            System.out.println("Game is null.");
             return null;
         }
 
-        JSONObject boxArt = getJSONObject(bestMatch, "box");
-        if (boxArt == null) {
-            System.out.println("Box art is null.");
-            return null;
-        }
-
-        String template = getString(boxArt, "template");
-        if (template == null) {
+        String gameName = getString(game, "name");
+        String boxArtUrl = getString(game, "box_art_url");
+        if (boxArtUrl == null) {
             System.out.println("Template is null.");
             return null;
         }
-        template = template.replace("{width}", "68");
-        template = template.replace("{height}", "95");
+        boxArtUrl = boxArtUrl.replace("{width}", "68");
+        boxArtUrl = boxArtUrl.replace("{height}", "95");
 
-        Image image = readImage(template);
+        Image image = readImage(boxArtUrl);
         if (image != null) {
-            m_gameImageCache.put(gameName, image);
+//            m_gameImageCache.put(gameName, image);
         } else {
             System.out.println("Couldn't read game image.");
         }
-        return image;
+
+        TwitchGameData result = new TwitchGameData();
+        result.gameName = gameName;
+        result.image = image;
+        return result;
     }
 
     private Image getProfileImage(TwitchMetaData metaData) {
