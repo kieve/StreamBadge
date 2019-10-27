@@ -219,7 +219,9 @@ public class App extends NanoHTTPD {
                 Response response = newFixedLengthResponse(Response.Status.OK,
                         "image/png", byteIS, bytes.length);
                 response.addHeader("Cache-Control",
-                        "max-age=0, no-cache, must-revalidate, proxy-revalidate");
+                        "no-cache, no-store, must-revalidate");
+                response.addHeader("Pragma", "no-cache");
+                response.addHeader("Expires", "0");
                 return response;
             } catch (Exception e) {
                 e.printStackTrace();
