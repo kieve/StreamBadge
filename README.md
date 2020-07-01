@@ -1,9 +1,9 @@
 # StreamBadge
 
-Something I threw together quickly since the http://streambadge.com/ Twitch Image generation is broken.
+Something I threw together quickly since the http://streambadge.com/ Twitch Image generation was broken.
 
 ## How to use:
-Visit http://twitch.kieve.ca/?user=TWITCH_USER
+Visit https://twitch.kieve.dev/?user=TWITCH_USER
 Replace TWITCH_USER with the appropriate username.
 
 ## Building
@@ -21,5 +21,5 @@ mvn compile package
 
 Run:
 ```
-java -jar target/StreamBadge-1.0-jar-with-dependencies.jar
+java -jar target/StreamBadge-1.0.war
 ```
