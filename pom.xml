@@ -79,7 +79,7 @@
                 <configuration>
                     <images>
                         <image>
-                            <name>kieve/stream-badge</name>
+                            <name>stream-badge</name>
                             <alias>dockerfile</alias>
                             <build>
                                 <contextDir>${project.basedir}</contextDir>
